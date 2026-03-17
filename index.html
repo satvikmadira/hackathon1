@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>InsightAI — Conversational BI Dashboard (Free)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface2: #f8f9fb;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --text: #0f1117;
+    --text2: #52576b;
+    --text3: #9499a8;
+    --accent: #185FA5;
+    --accent-dark: #0c447c;
+    --accent-light: #e8f1fb;
+    --green: #1D9E75;
+    --green-light: #e6f7f0;
+    --red: #d94040;
+    --red-light: #fdf0f0;
+    --amber: #BA7517;
+    --amber-light: #fef7e8;
+    --sidebar-bg: #0d1321;
+    --sidebar-text: #94a3b8;
+    --sidebar-active: #185FA5;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  html, body { height: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: var(--bg); }
+
+  /* ── Login screen ── */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--sidebar-bg);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(24,95,165,0.15) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(29,158,117,0.08) 0%, transparent 50%);
+  }
+  .login-card {
+    background: var(--surface); border-radius: var(--radius-lg); padding: 40px;
+    width: 380px; box-shadow: var(--shadow-md);
+  }
+  .login-brand { text-align: center; margin-bottom: 28px; }
+  .login-brand-icon {
+    width: 52px; height: 52px; background: var(--accent); border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
+    font-size: 24px;
+  }
+  .login-brand h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+  .login-brand p { font-size: 13px; color: var(--text2); margin-top: 3px; }
+  .form-field { margin-bottom: 14px; }
+  .form-field label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .form-field input {
+    width: 100%; padding: 10px 13px; border: 1.5px solid var(--border2); border-radius: var(--radius);
+    font-size: 14px; font-family: var(--font); color: var(--text); background: var(--surface);
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .form-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+  .login-btn {
+    width: 100%; padding: 11px; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius); font-size: 14px; font-weight: 600; font-family: var(--font);
+    cursor: pointer; transition: background 0.15s; margin-top: 4px;
+  }
+  .login-btn:hover { background: var(--accent-dark); }
+  .login-err {
+    background: var(--red-light); border: 1px solid rgba(217,64,64,0.25); border-radius: var(--radius);
+    padding: 9px 12px; font-size: 13px; color: var(--red); margin-bottom: 14px; display: none;
+  }
+  .login-hint { text-align: center; font-size: 12px; color: var(--text3); margin-top: 16px; line-height: 1.8; }
+  .login-hint code { font-family: var(--mono); background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: var(--text2); font-size: 11px; }
+
+  /* ── App shell ── */
+  #appShell { display: none; height: 100vh; flex-direction: row; }
+  #appShell.visible { display: flex; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 230px; flex-shrink: 0; background: var(--sidebar-bg); display: flex;
+    flex-direction: column; border-right: 1px solid rgba(255,255,255,0.05);
+  }
+  .sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .sidebar-logo-row { display: flex; align-items: center; gap: 10px; }
+  .sidebar-logo-icon {
+    width: 30px; height: 30px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0;
+  }
+  .sidebar-logo-text { font-size: 15px; font-weight: 600; color: #f1f5f9; }
+  .sidebar-logo-sub { font-size: 11px; color: #475569; margin-top: 1px; }
+  .sidebar-user { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px; }
+  .user-av {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 12px;
+    font-weight: 600; color: #fff; flex-shrink: 0;
+  }
+  .user-info-name { font-size: 13px; color: #cbd5e1; font-weight: 500; }
+  .user-info-role { font-size: 11px; color: #475569; }
+  .sidebar-nav { flex: 1; padding: 10px 10px; }
+  .nav-section-label { font-size: 10px; color: #334155; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; padding: 10px 8px 4px; }
+  .nav-link {
+    display: flex; align-items: center; gap: 9px; padding: 9px 10px;
+    border-radius: 8px; cursor: pointer; color: var(--sidebar-text); font-size: 13px;
+    font-weight: 500; transition: all 0.15s; margin-bottom: 1px; text-decoration: none;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+  .nav-link.active { background: rgba(24,95,165,0.25); color: #93c5fd; }
+  .nav-link.active .nav-icon { color: #3b82f6; }
+  .nav-icon { width: 16px; font-size: 14px; text-align: center; flex-shrink: 0; }
+  .sidebar-footer { padding: 12px 10px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .logout-link {
+    display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px;
+    cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; transition: all 0.15s;
+    border: none; background: transparent; width: 100%; font-family: var(--font);
+  }
+  .logout-link:hover { background: rgba(255,255,255,0.05); color: #94a3b8; }
+
+  /* ── Main area ── */
+  .main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px;
+    height: 54px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 8px; }
+  .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+  .badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 500;
+    border: 1px solid var(--border2); color: var(--text2); background: var(--surface2);
+  }
+  .badge.ok { background: var(--green-light); border-color: rgba(29,158,117,0.3); color: #0f6e56; }
+  .badge.warn { background: var(--red-light); border-color: rgba(217,64,64,0.25); color: var(--red); }
+  .badge.info { background: var(--accent-light); border-color: rgba(24,95,165,0.25); color: var(--accent-dark); }
+
+  .page-content { flex: 1; overflow-y: auto; padding: 24px; }
+
+  /* ── Pages ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 20px; }
+  .page-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .page-header p { font-size: 13px; color: var(--text2); margin-top: 3px; }
+
+  /* ── Query box ── */
+  .query-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow);
+  }
+  .query-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .query-textarea {
+    flex: 1; padding: 10px 13px; border: 1.5px solid var(--border2); border-radius: var(--radius);
+    font-size: 14px; font-family: var(--font); color: var(--text); resize: none; outline: none;
+    background: var(--surface); transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .query-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  .generate-btn {
+    padding: 0 20px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer;
+    transition: background 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+  }
+  .generate-btn:hover { background: var(--accent-dark); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .generate-btn svg { width: 14px; height: 14px; }
+  .example-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 12px; padding: 5px 11px; border: 1px solid var(--border2); border-radius: 20px;
+    cursor: pointer; color: var(--text2); background: var(--surface2); transition: all 0.12s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+  /* ── Status / error ── */
+  .status-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text3); min-height: 22px; margin-bottom: 10px; }
+  .spinner { width: 13px; height: 13px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err-banner { background: var(--red-light); border: 1px solid rgba(217,64,64,0.25); border-radius: var(--radius); padding: 10px 14px; font-size: 13px; color: var(--red); margin-bottom: 14px; display: none; }
+
+  /* ── Insight banner ── */
+  .insight-banner {
+    background: var(--accent-light); border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: var(--text); line-height: 1.6;
+  }
+  .insight-label { font-size: 10px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+
+  /* ── Metrics ── */
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .metric-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .metric-tile-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .metric-tile-value { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.1; }
+  .metric-tile-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .metric-tile-sub.up { color: var(--green); }
+  .metric-tile-sub.down { color: var(--red); }
+
+  /* ── Charts ── */
+  .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .chart-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 16px; box-shadow: var(--shadow);
+  }
+  .chart-tile.full { grid-column: 1 / -1; }
+  .chart-tile-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .chart-tile-sub { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
+  .chart-canvas-wrap { position: relative; width: 100%; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── Upload page ── */
+  .upload-dropzone {
+    border: 2px dashed var(--border2); border-radius: var(--radius-lg); padding: 48px 32px;
+    text-align: center; cursor: pointer; background: var(--surface); transition: all 0.15s;
+  }
+  .upload-dropzone:hover, .upload-dropzone.drag { border-color: var(--accent); background: var(--accent-light); }
+  .upload-dz-icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-dz-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .upload-dz-sub { font-size: 13px; color: var(--text2); }
+  .upload-dz-btn {
+    display: inline-block; margin-top: 14px; padding: 8px 18px; background: var(--accent);
+    color: #fff; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+  }
+
+  .preview-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-top: 16px; box-shadow: var(--shadow); display: none; }
+  .preview-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+  .table-scroll { overflow-x: auto; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { background: var(--surface2); padding: 7px 10px; text-align: left; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .data-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .use-dataset-btn {
+    margin-top: 14px; padding: 9px 20px; background: var(--green); color: #fff;
+    border: none; border-radius: var(--radius); font-size: 13px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; transition: background 0.15s;
+  }
+  .use-dataset-btn:hover { background: #0f6e56; }
+  .active-dataset-banner {
+    background: var(--green-light); border: 1px solid rgba(29,158,117,0.3); border-radius: var(--radius);
+    padding: 10px 14px; font-size: 13px; color: #0f6e56; margin-bottom: 14px;
+    display: none; align-items: center; justify-content: space-between;
+  }
+  .active-dataset-banner.show { display: flex; }
+  .clear-ds { cursor: pointer; font-size: 11px; opacity: 0.7; }
+  .clear-ds:hover { opacity: 1; }
+
+  /* ── Settings ── */
+  .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .settings-card h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .settings-card p { font-size: 13px; color: var(--text2); margin-bottom: 12px; line-height: 1.6; }
+  .key-row { display: flex; gap: 8px; }
+  .key-field {
+    flex: 1; padding: 9px 12px; border: 1.5px solid var(--border2); border-radius: var(--radius);
+    font-size: 13px; font-family: var(--mono); color: var(--text); background: var(--surface); outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .key-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(24,95,165,0.1); }
+  .save-key-btn {
+    padding: 9px 16px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius);
+    font-size: 13px; font-weight: 600; font-family: var(--font); cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .save-key-btn:hover { background: var(--accent-dark); }
+  .key-status { font-size: 12px; margin-top: 8px; min-height: 18px; }
+  .key-status.ok { color: var(--green); }
+  .key-status.bad { color: var(--red); }
+
+  /* ── History ── */
+  .history-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; margin-bottom: 8px; box-shadow: var(--shadow); }
+  .history-q { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .history-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text3); }
+  .history-ok { color: var(--green); }
+  .history-fail { color: var(--red); }
+  .history-insight { font-size: 12px; color: var(--text2); margin-top: 5px; font-style: italic; }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--text3); font-size: 13px; }
+  .empty-state-icon { font-size: 32px; margin-bottom: 10px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #b0b5c4; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-icon">📊</div>
+      <h1>InsightAI</h1>
+      <p>Conversational BI Dashboard</p>
+    </div>
+    <div class="login-err" id="loginErr">Incorrect username or password. Try again.</div>
+    <div class="form-field">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="admin / demo / guest" autocomplete="username" />
+    </div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-hint">
+      Demo accounts:<br>
+      <code>admin</code> / <code>admin123</code> &nbsp;·&nbsp; <code>demo</code> / <code>demo123</code> &nbsp;·&nbsp; <code>guest</code> / <code>guest123</code>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ APP SHELL ═══════════════ -->
+<div id="appShell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-row">
+        <div class="sidebar-logo-icon">📊</div>
+        <div>
+          <div class="sidebar-logo-text">InsightAI</div>
+          <div class="sidebar-logo-sub">BI Dashboard</div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-user">
+      <div class="user-av" id="userAv">AD</div>
+      <div>
+        <div class="user-info-name" id="userName">admin</div>
+        <div class="user-info-role">Analyst</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a class="nav-link active" onclick="goto('dashboard',this)">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a class="nav-link" onclick="goto('upload',this)">
+        <span class="nav-icon">📁</span> Upload Data
+      </a>
+      <a class="nav-link" onclick="goto('history',this)">
+        <span class="nav-icon">🕐</span> Query History
+      </a>
+      <div class="nav-section-label" style="margin-top:8px">System</div>
+      <a class="nav-link" onclick="goto('settings',this)">
+        <span class="nav-icon">⚙️</span> Settings
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-link" onclick="doLogout()">
+        <span class="nav-icon">🚪</span> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-area">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      </div>
+      <div class="topbar-right">
+        <span class="badge info" id="datasetBadge">Sample dataset</span>
+        <span class="badge warn" id="apiBadge">No API key</span>
+      </div>
+    </div>
+
+    <!-- Pages -->
+    <div class="page-content">
+
+      <!-- ── Dashboard ── -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h2>Ask your data anything</h2>
+          <p>Type a plain English question — Claude will analyze your data and build the right charts instantly.</p>
+        </div>
+
+        <div class="query-box">
+          <div class="query-input-row">
+            <textarea class="query-textarea" id="queryTA" rows="2"
+              placeholder="e.g. Show monthly sales revenue broken down by region for Q3"></textarea>
+            <button class="generate-btn" id="genBtn" onclick="runQuery()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              Generate
+            </button>
+          </div>
+          <div class="example-chips" id="exampleChips"></div>
+        </div>
+
+        <div class="status-row" id="statusRow"></div>
+        <div class="err-banner" id="errBanner"></div>
+        <div id="dashboardOutput"></div>
+      </div>
+
+      <!-- ── Upload ── -->
+      <div id="page-upload" class="page">
+        <div class="page-header">
+          <h2>Upload your data</h2>
+          <p>Upload any CSV file and start querying it with natural language immediately.</p>
+        </div>
+
+        <div class="active-dataset-banner" id="activeDSBanner">
+          <span id="activeDSLabel"></span>
+          <span class="clear-ds" onclick="clearDS()">✕ Clear</span>
+        </div>
+
+        <div class="upload-dropzone" id="dropZone"
+          onclick="document.getElementById('fileInput').click()"
+          ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)">
+          <div class="upload-dz-icon">📂</div>
+          <div class="upload-dz-title">Drop your CSV here</div>
+          <div class="upload-dz-sub">or click to browse your files</div>
+          <div class="upload-dz-btn">Choose file</div>
+        </div>
+        <input type="file" id="fileInput" accept=".csv" style="display:none" onchange="handleCSV(event)" />
+
+        <div class="preview-card" id="previewCard">
+          <div class="preview-title" id="previewTitle"></div>
+          <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+            <span id="previewRows"></span>
+            <span id="previewCols"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table" id="previewTable"></table>
+          </div>
+          <button class="use-dataset-btn" onclick="activateDS()">✓ Use this dataset →</button>
+        </div>
+
+        <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow)">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px">💡 Tips for best results</div>
+          <ul style="font-size:13px;color:var(--text2);line-height:2;padding-left:18px">
+            <li>Use clear column names like <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">revenue</code>, <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">region</code>, <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">date</code></li>
+            <li>Date formats like <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">2024-01-15</code> or <code style="font-family:var(--mono);background:var(--surface2);padding:1px 5px;border-radius:3px">Jan 2024</code> work great</li>
+            <li>Remove $ and , from numeric columns before uploading</li>
+            <li>Files up to 10MB with up to 50,000 rows work well</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── History ── -->
+      <div id="page-history" class="page">
+        <div class="page-header">
+          <h2>Query history</h2>
+          <p>All questions asked during this session.</p>
+        </div>
+        <div id="historyOutput">
+          <div class="empty-state">
+            <div class="empty-state-icon">🕐</div>
+            No queries yet. Head to Dashboard and ask your first question!
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Settings ── -->
+      <div id="page-settings" class="page">
+        <div class="page-header">
+          <h2>Settings</h2>
+          <p>Configure your API key and account preferences.</p>
+        </div>
+
+        <div class="settings-card">
+          <h3>🔑 Gemini API Key — 100% Free</h3>
+          <p>Completely free — no credit card needed! Get your key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">aistudio.google.com</a> → Sign in with Google → Click <strong>Get API Key</strong> → <strong>Create API key</strong> → Copy &amp; paste below.</p>
+          <div class="key-row">
+            <input class="key-field" id="keyInput" type="password" placeholder="AIzaSy..." />
+            <button class="save-key-btn" onclick="saveKey()">Save key</button>
+          </div>
+          <div class="key-status" id="keyStatus"></div>
+        </div>
+
+        <div class="settings-card">
+          <h3>👤 Account</h3>
+          <p>Logged in as <strong id="settingsUser" style="color:var(--text)"></strong>. Credentials are session-only.</p>
+        </div>
+
+        <div class="settings-card">
+          <h3>ℹ️ About InsightAI</h3>
+          <p>
+            <strong>InsightAI</strong> is a conversational BI dashboard powered by Google Gemini AI (Free).<br>
+            Type plain English questions → get instant interactive charts and insights.<br><br>
+            Stack: Vanilla HTML/CSS/JS · Chart.js · PapaParse · Google Gemini API (Free)<br>
+            Deployment: Works on GitHub Pages, Netlify, Vercel — any static host.
+          </p>
+        </div>
+      </div>
+
+    </div><!-- /page-content -->
+  </div><!-- /main-area -->
+</div><!-- /appShell -->
+
+<script>
+/* ═══════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════ */
+const USERS = { admin:'admin123', demo:'demo123', guest:'guest123' };
+const PALETTE = ['#185FA5','#1D9E75','#D85A30','#BA7517','#534AB7','#D4537E','#639922','#0C447C','#085041'];
+const EXAMPLES = [
+  'Show monthly revenue trend for all regions',
+  'Which product category had the highest revenue?',
+  'Compare sales rep performance by total revenue',
+  'Revenue breakdown by region as a percentage',
+  'Top 5 months by total revenue',
+  'Q4 vs Q3 performance across all categories',
+  'Which region has the best customer satisfaction?',
+  'Show correlation between deals closed and revenue'
+];
+
+/* ═══════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════ */
+const S = {
+  apiKey: '',
+  user: '',
+  data: null,
+  filename: 'Sample dataset',
+  history: [],
+  charts: [],
+  pendingData: null
+};
+
+/* ═══════════════════════════════════════════════
+   SAMPLE DATA GENERATOR
+═══════════════════════════════════════════════ */
+function makeSampleData() {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const regions = ['North','South','East','West'];
+  const cats = ['Electronics','Clothing','Home & Garden','Sports','Books'];
+  const reps = ['Alice Chen','Bob Martinez','Carol Singh','David Kim','Emma Johnson','Frank Liu'];
+  const base = { Electronics:120000, Clothing:75000, 'Home & Garden':55000, Sports:45000, Books:22000 };
+  const rf = { North:1.1, South:0.85, East:1.2, West:1.0 };
+  const rows = [];
+  months.forEach((m, mi) => {
+    regions.forEach(r => {
+      cats.forEach(c => {
+        let rev = base[c] * rf[r];
+        if (mi >= 10) rev *= 1.4;
+        else if (mi >= 5 && mi <= 7) rev *= 1.15;
+        rev = Math.round(rev + (Math.random() - 0.5) * rev * 0.14);
+        rows.push({
+          month: m, month_num: mi+1, region: r, category: c,
+          revenue: Math.max(rev, 0),
+          units_sold: Math.round(Math.max(rev,0) / (80 + Math.random()*170)),
+          profit_margin: Math.round((0.12 + Math.random()*0.28)*100)/100,
+          deals_closed: Math.round(8 + Math.random()*26),
+          customer_satisfaction: Math.round((3.2 + Math.random()*1.8)*10)/10,
+          sales_rep: reps[Math.floor(Math.random()*reps.length)]
+        });
+      });
+    });
+  });
+  return rows;
+}
+
+/* ═══════════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════════ */
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  if (USERS[u] && USERS[u] === p) {
+    S.user = u;
+    S.data = makeSampleData();
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').classList.add('visible');
+    document.getElementById('userAv').textContent = u.slice(0,2).toUpperCase();
+    document.getElementById('userName').textContent = u;
+    document.getElementById('settingsUser').textContent = u;
+    buildChips();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+
+function doLogout() {
+  Object.assign(S, { apiKey:'', user:'', data:null, filename:'Sample dataset', history:[], charts:[], pendingData:null });
+  document.getElementById('appShell').classList.remove('visible');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  document.getElementById('dashboardOutput').innerHTML = '';
+  document.getElementById('apiBadge').textContent = 'No API key';
+  document.getElementById('apiBadge').className = 'badge warn';
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPass').focus(); });
+
+/* ═══════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════ */
+function goto(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  el.classList.add('active');
+  const titles = { dashboard:'Dashboard', upload:'Upload Data', history:'Query History', settings:'Settings' };
+  document.getElementById('topbarTitle').textContent = titles[page] || page;
+  if (page === 'history') renderHistory();
+}
+
+function buildChips() {
+  document.getElementById('exampleChips').innerHTML = EXAMPLES.map(e =>
+    `<div class="chip" onclick="setQuery('${e.replace(/'/g,"\\'")}')">${e.length>42?e.slice(0,40)+'…':e}</div>`
+  ).join('');
+}
+
+function setQuery(q) {
+  document.getElementById('queryTA').value = q;
+  document.getElementById('queryTA').focus();
+}
+
+/* ═══════════════════════════════════════════════
+   API KEY
+═══════════════════════════════════════════════ */
+function saveKey() {
+  const k = document.getElementById('keyInput').value.trim();
+  if (!k) return;
+  S.apiKey = k;
+  const ks = document.getElementById('keyStatus');
+  ks.textContent = '✓ Gemini key saved — free queries ready!';
+  ks.className = 'key-status ok';
+  document.getElementById('apiBadge').textContent = 'Gemini API active';
+  document.getElementById('apiBadge').className = 'badge ok';
+}
+
+/* ═══════════════════════════════════════════════
+   STATUS HELPERS
+═══════════════════════════════════════════════ */
+function setStatus(msg, loading=false) {
+  const el = document.getElementById('statusRow');
+  if (!msg) { el.innerHTML = ''; return; }
+  el.innerHTML = loading
+    ? `<div class="spinner"></div><span>${msg}</span>`
+    : `<span style="color:var(--text3)">${msg}</span>`;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function hideErr() {
+  document.getElementById('errBanner').style.display = 'none';
+}
+
+/* ═══════════════════════════════════════════════
+   QUERY & GEMINI API
+═══════════════════════════════════════════════ */
+async function runQuery() {
+  const q = document.getElementById('queryTA').value.trim();
+  if (!q) return;
+
+  if (!S.apiKey) {
+    showErr('No API key configured. Go to ⚙️ Settings and enter your free Gemini API key. Get one at aistudio.google.com');
+    return;
+  }
+
+  hideErr();
+  document.getElementById('genBtn').disabled = true;
+  destroyCharts();
+  document.getElementById('dashboardOutput').innerHTML = '';
+  setStatus('Analyzing your question…', true);
+
+  const data = S.data || makeSampleData();
+  const cols = Object.keys(data[0] || {});
+
+  // Build column stats for the prompt
+  const colStats = {};
+  cols.forEach(c => {
+    const vals = data.map(r => r[c]).filter(v => v != null && v !== '');
+    const nums = vals.filter(v => typeof v === 'number' && !isNaN(v));
+    const uniq = [...new Set(vals)];
+    colStats[c] = {
+      type: nums.length > vals.length * 0.6 ? 'numeric' : 'categorical',
+      unique_values: uniq.length <= 15 ? uniq.slice(0, 15) : uniq.slice(0, 8),
+      unique_count: uniq.length,
+      sample: vals.slice(0, 5),
+      sum: nums.length ? Math.round(nums.reduce((a,b)=>a+b,0)) : null,
+      mean: nums.length ? Math.round(nums.reduce((a,b)=>a+b,0)/nums.length) : null,
+      min: nums.length ? Math.min(...nums) : null,
+      max: nums.length ? Math.max(...nums) : null
+    };
+  });
+
+  const systemPrompt = `You are an expert BI analyst AI embedded in a dashboard application.
+The user has loaded a dataset with ${data.length} rows.
+
+Column details:
+${JSON.stringify(colStats, null, 1)}
+
+First 6 rows of data:
+${JSON.stringify(data.slice(0,6))}
+
+Your job: answer the user's business question by analyzing this data and specifying what charts to draw.
+
+RESPOND ONLY with a single valid JSON object — no markdown, no backticks, no prose outside the JSON.
+
+If the question CAN be answered:
+{
+  "answerable": true,
+  "insight": "1-2 sentence executive summary of the KEY finding with actual numbers",
+  "metrics": [
+    {"label": "Total Revenue", "value": "$4.2M", "sub": "across all regions", "trend": "up"}
+  ],
+  "charts": [
+    {
+      "type": "bar | line | pie | doughnut | horizontalBar",
+      "title": "Chart title",
+      "subtitle": "Brief description",
+      "full": false,
+      "labels": ["Jan", "Feb", ...],
+      "datasets": [
+        {"label": "North", "data": [142000, 155000, ...], "color": "#185FA5"}
+      ]
+    }
+  ]
+}
+
+If the question CANNOT be answered from this data:
+{"answerable": false, "reason": "Explain why in one sentence."}
+
+STRICT RULES:
+- line: time-series data (months, dates, sequential)
+- bar: side-by-side comparisons across categories
+- horizontalBar: ranked lists (top 5, bottom 3, etc.) or when there are more than 6 categories
+- pie / doughnut: parts-of-whole (max 6 slices, must sum to meaningful total)
+- Always AGGREGATE the data — sum revenues by month/region, count deals, average satisfaction
+- Include 2–4 metric cards with real computed numbers from the data
+- Include 1–3 charts maximum — quality over quantity
+- For Q3 = Jul/Aug/Sep (months 7,8,9), Q4 = Oct/Nov/Dec, Q1 = Jan/Feb/Mar, Q2 = Apr/May/Jun
+- Use these colors in order: #185FA5 #1D9E75 #D85A30 #BA7517 #534AB7 #D4537E #639922
+- Insight must contain REAL numbers — compute them from the data`;
+
+  try {
+    setStatus('Building your dashboard…', true);
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${S.apiKey}`;
+    const res = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: systemPrompt + '\n\nUser question: ' + q }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
+      })
+    });
+
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message || 'Gemini API error');
+
+    const raw = (json.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json|```/g,'').trim();
+    const result = JSON.parse(raw);
+
+    S.history.unshift({
+      q, time: new Date().toLocaleTimeString(),
+      ok: result.answerable,
+      insight: result.insight || ''
+    });
+
+    if (!result.answerable) {
+      showErr('Cannot answer: ' + (result.reason || 'The data does not contain the required information.'));
+      setStatus('');
+    } else {
+      renderDashboard(result);
+      setStatus('');
+    }
+  } catch(e) {
+    showErr('Error: ' + e.message + (e.message.includes('API_KEY') || e.message.includes('400') ? ' — Check your Gemini API key in Settings.' : ''));
+    setStatus('');
+  }
+
+  document.getElementById('genBtn').disabled = false;
+}
+
+document.getElementById('queryTA').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runQuery(); }
+});
+
+/* ═══════════════════════════════════════════════
+   RENDER DASHBOARD
+═══════════════════════════════════════════════ */
+function destroyCharts() {
+  S.charts.forEach(c => { try { c.destroy(); } catch(e) {} });
+  S.charts = [];
+}
+
+function renderDashboard(r) {
+  let html = '';
+
+  if (r.insight) {
+    html += `<div class="insight-banner">
+      <div class="insight-label">Key Insight</div>
+      ${r.insight}
+    </div>`;
+  }
+
+  if (r.metrics && r.metrics.length) {
+    html += `<div class="metrics-grid">`;
+    r.metrics.slice(0, 4).forEach(m => {
+      const tc = m.trend==='up' ? 'up' : m.trend==='down' ? 'down' : '';
+      const ti = m.trend==='up' ? '↑ ' : m.trend==='down' ? '↓ ' : '';
+      html += `<div class="metric-tile">
+        <div class="metric-tile-label">${m.label}</div>
+        <div class="metric-tile-value">${m.value}</div>
+        <div class="metric-tile-sub ${tc}">${ti}${m.sub||''}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (r.charts && r.charts.length) {
+    html += `<div class="charts-grid">`;
+    r.charts.forEach((ch, i) => {
+      const isHBar = ch.type === 'horizontalBar';
+      const barH = isHBar ? Math.max(250, (ch.labels||[]).length * 42 + 80) : 260;
+      html += `<div class="chart-tile${ch.full?' full':''}">
+        <div class="chart-tile-title">${ch.title || ''}</div>
+        <div class="chart-tile-sub">${ch.subtitle || ''}</div>
+        <div class="chart-canvas-wrap" style="height:${barH}px">
+          <canvas id="cv_${i}"></canvas>
+        </div>
+        <div class="legend-row" id="lg_${i}"></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('dashboardOutput').innerHTML = html;
+
+  // Build charts after DOM update
+  setTimeout(() => {
+    (r.charts || []).forEach((ch, i) => {
+      const canvas = document.getElementById('cv_' + i);
+      if (!canvas) return;
+      const isDough = ch.type === 'pie' || ch.type === 'doughnut';
+      const isHBar = ch.type === 'horizontalBar';
+
+      const datasets = (ch.datasets || []).map((ds, di) => {
+        const col = ds.color || PALETTE[di % PALETTE.length];
+        if (isDough) {
+          return {
+            label: ds.label, data: ds.data,
+            backgroundColor: PALETTE.slice(0, ds.data.length),
+            borderWidth: 2, borderColor: '#ffffff'
+          };
+        }
+        return {
+          label: ds.label, data: ds.data,
+          backgroundColor: ch.type === 'line' ? col + '20' : col,
+          borderColor: col,
+          borderWidth: ch.type === 'line' ? 2.5 : 0,
+          fill: ch.type === 'line',
+          tension: 0.38,
+          pointRadius: ch.type === 'line' ? 3 : 0,
+          pointHoverRadius: ch.type === 'line' ? 5 : 0
+        };
+      });
+
+      const fmtVal = v => {
+        if (typeof v !== 'number') return v;
+        if (v >= 1000000) return '$' + (v/1000000).toFixed(1) + 'M';
+        if (v >= 1000) return '$' + Math.round(v/1000) + 'K';
+        return Math.round(v * 100) / 100;
+      };
+
+      const cfg = {
+        type: isHBar ? 'bar' : (isDough ? 'doughnut' : ch.type),
+        data: { labels: ch.labels, datasets },
+        options: {
+          indexAxis: isHBar ? 'y' : 'x',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0d1321',
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: ctx => {
+                  const v = ctx.parsed?.y ?? ctx.parsed?.x ?? ctx.raw ?? 0;
+                  return '  ' + fmtVal(v);
+                }
+              }
+            }
+          },
+          scales: isDough ? {} : {
+            x: {
+              grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+              ticks: { font: { size: 11, family: "'DM Sans', sans-serif" }, color: '#9499a8',
+                autoSkip: true, maxRotation: 40,
+                callback: v => typeof v === 'number' ? fmtVal(v) : v
+              },
+              border: { display: false }
+            },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+              ticks: { font: { size: 11, family: "'DM Sans', sans-serif" }, color: '#9499a8',
+                callback: v => typeof v === 'number' ? fmtVal(v) : v
+              },
+              border: { display: false }
+            }
+          }
+        }
+      };
+
+      if (isHBar) {
+        cfg.options.scales.y.ticks.autoSkip = false;
+        cfg.options.scales.x.ticks.maxRotation = 0;
+      }
+
+      const inst = new Chart(canvas, cfg);
+      S.charts.push(inst);
+
+      // Build legend
+      const leg = document.getElementById('lg_' + i);
+      if (!leg) return;
+      if (isDough) {
+        (ch.labels || []).forEach((lbl, li) => {
+          leg.innerHTML += `<span class="legend-item"><span class="legend-dot" style="background:${PALETTE[li%PALETTE.length]}"></span>${lbl}</span>`;
+        });
+      } else {
+        (ch.datasets || []).forEach((ds, di) => {
+          const col = ds.color || PALETTE[di % PALETTE.length];
+          leg.innerHTML += `<span class="legend-item"><span class="legend-dot" style="background:${col}"></span>${ds.label}</span>`;
+        });
+      }
+    });
+  }, 50);
+}
+
+/* ═══════════════════════════════════════════════
+   HISTORY
+═══════════════════════════════════════════════ */
+function renderHistory() {
+  const el = document.getElementById('historyOutput');
+  if (!S.history.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🕐</div>No queries yet. Head to Dashboard!</div>`;
+    return;
+  }
+  el.innerHTML = S.history.map(h => `
+    <div class="history-item">
+      <div class="history-q">${h.q}</div>
+      <div class="history-meta">
+        <span>${h.time}</span>
+        <span class="${h.ok?'history-ok':'history-fail'}">${h.ok ? '✓ Answered' : '✗ Failed'}</span>
+      </div>
+      ${h.insight ? `<div class="history-insight">${h.insight}</div>` : ''}
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   CSV UPLOAD
+═══════════════════════════════════════════════ */
+function dzOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag'); }
+function dzLeave() { document.getElementById('dropZone').classList.remove('drag'); }
+function dzDrop(e) {
+  e.preventDefault();
+  dzLeave();
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.csv')) loadCSV(f);
+}
+function handleCSV(e) { const f = e.target.files[0]; if (f) loadCSV(f); }
+
+function loadCSV(file) {
+  Papa.parse(file, {
+    header: true, skipEmptyLines: true, dynamicTyping: true,
+    complete: result => {
+      S.pendingData = { rows: result.data, filename: file.name, cols: result.meta.fields };
+      showPreview(result.data, result.meta.fields, file.name);
+    },
+    error: err => alert('Could not parse CSV: ' + err.message)
+  });
+}
+
+function showPreview(rows, cols, fname) {
+  const card = document.getElementById('previewCard');
+  card.style.display = 'block';
+  document.getElementById('previewTitle').textContent = '📄 ' + fname;
+  document.getElementById('previewRows').textContent = rows.length.toLocaleString() + ' rows';
+  document.getElementById('previewCols').textContent = cols.length + ' columns';
+
+  const preview = rows.slice(0, 8);
+  document.getElementById('previewTable').innerHTML =
+    `<thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+     <tbody>${preview.map(r=>`<tr>${cols.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+function activateDS() {
+  if (!S.pendingData) return;
+  S.data = S.pendingData.rows;
+  S.filename = S.pendingData.filename;
+  document.getElementById('datasetBadge').textContent = S.filename;
+  document.getElementById('datasetBadge').className = 'badge info';
+  const banner = document.getElementById('activeDSBanner');
+  document.getElementById('activeDSLabel').textContent = `✓ Active: ${S.filename} (${S.data.length.toLocaleString()} rows)`;
+  banner.classList.add('show');
+  document.getElementById('previewCard').style.display = 'none';
+}
+
+function clearDS() {
+  S.data = makeSampleData();
+  S.filename = 'Sample dataset';
+  document.getElementById('datasetBadge').textContent = 'Sample dataset';
+  document.getElementById('datasetBadge').className = 'badge info';
+  document.getElementById('activeDSBanner').classList.remove('show');
+  S.pendingData = null;
+}
+</script>
+</body>
+</html>
